@@ -1,0 +1,19 @@
+# fly.toml app configuration file
+# The real app name will be placed here automatically when you run 'fly launch'
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[mounts]
+  # Configures the persistent database volume. 
+  # You must create this volume using: fly volumes create hotel_data --region YOUR_REGION
+  source = "hotel_data"
+  destination = "/data"

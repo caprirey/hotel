@@ -30,6 +30,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def startup_event():
+    db = SessionLocal()
+    try:
+        admin_user = db.query(User).filter(User.username == "admin").first()
+        if not admin_user:
+            import bcrypt
+            hashed = bcrypt.hashpw(b"admin123", bcrypt.gensalt()).decode("utf-8")
+            new_admin = User(username="admin", password_hash=hashed)
+            db.add(new_admin)
+            db.commit()
+    finally:
+        db.close()
+
 def get_db():
     db = SessionLocal()
     try:
