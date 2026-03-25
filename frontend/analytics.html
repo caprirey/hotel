@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas - Hotel Income Tracker</title>
+    <link rel="stylesheet" href="style.css?v=8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .analytics-container { padding: 2rem; max-width: 1200px; margin: auto; }
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+        .chart-card { background: var(--surface); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .chart-title { font-size: 1.2rem; font-weight: 600; color: #fff; }
+        .range-picker { padding: 0.5rem; background: var(--bg-color); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; }
+        
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="display:flex; align-items:center;">
+            <button class="btn-reset" onclick="window.location.href='/'" style="margin-right:1rem; padding: 0.5rem;">< Volver</button>
+            <h1 style="color:var(--primary); margin:0;">Inteligencia de Negocio 📊</h1>
+        </div>
+    </header>
+
+    <div class="analytics-container">
+        <div class="chart-grid">
+            <!-- Tendencia de Ingresos -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Tendencia Monetaria ($)</div>
+                    <select class="range-picker" id="income-range" onchange="loadTrendData()">
+                        <option value="day">Últimos 30 Días</option>
+                        <option value="week">Histórico por Semanas</option>
+                        <option value="month">Histórico por Meses</option>
+                    </select>
+                </div>
+                <canvas id="incomeChart"></canvas>
+            </div>
+
+            <!-- Nivel de Ocupación -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">Nivel Estacional de Ocupación</div>
+                </div>
+                <!-- Occupancy relies on the same timeframe selector above implicitly -->
+                <canvas id="occupancyChart"></canvas>
+            </div>
+            
+            <!-- Rendimiento por Habitación (Ranking) -->
+            <div class="chart-card" style="grid-column: 1 / -1; margin-top: 1rem;">
+                <div class="chart-header">
+                    <div class="chart-title">Rendimiento Total Acumulado por Habitación</div>
+                </div>
+                <canvas id="roomsChart" style="max-height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        const getToken = () => localStorage.getItem('hotel_token');
+
+        async function authFetch(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            const token = getToken();
+            if (token) options.headers['Authorization'] = `Bearer ${token}`;
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                localStorage.removeItem('hotel_token');
+                window.location.href = '/login.html';
+            }
+            return res;
+        }
+
+        let incomeChartIntance = null;
+        let occupancyChartInstance = null;
+        let roomsChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!getToken()) {
+                window.location.href = '/login.html';
+                return;
+            }
+            // Adopt dark themes for legends and text globally in ChartJS
+            Chart.defaults.color = '#8b949e';
+            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+            
+            loadTrendData();
+            loadRoomsData();
+        });
+
+        async function loadTrendData() {
+            const groupBy = document.getElementById('income-range').value;
+            const res = await authFetch(`${API_BASE}/analytics/trend?group_by=${groupBy}`);
+            if(!res.ok) return;
+            const data = await res.json();
+            
+            const labels = data.map(d => d.period);
+            const incomes = data.map(d => d.income);
+            const occupancies = data.map(d => d.occupancy);
+
+            const ctxIncome = document.getElementById('incomeChart').getContext('2d');
+            if (incomeChartIntance) incomeChartIntance.destroy();
+            incomeChartIntance = new Chart(ctxIncome, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ingresos Brutos ($)',
+                        data: incomes,
+                        borderColor: '#58a6ff',
+                        backgroundColor: 'rgba(88, 166, 255, 0.2)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            const ctxOcc = document.getElementById('occupancyChart').getContext('2d');
+            if (occupancyChartInstance) occupancyChartInstance.destroy();
+            occupancyChartInstance = new Chart(ctxOcc, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ocupación de Habitaciones',
+                        data: occupancies,
+                        backgroundColor: '#3fb950',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        async function loadRoomsData() {
+            const res = await authFetch(`${API_BASE}/analytics/rooms`);
+            if(!res.ok) return;
+            const raw = await res.json();
+            
+            // Sort highest income to lowest properly
+            raw.sort((a,b) => b.total_income - a.total_income);
+            
+            const labels = raw.map(r => `Hab. ${r.room_number}`);
+            const data = raw.map(r => r.total_income);
+
+            const ctx = document.getElementById('roomsChart').getContext('2d');
+            if (roomsChartInstance) roomsChartInstance.destroy();
+            roomsChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Rendimiento Histórico en Efectivo ($)',
+                        data: data,
+                        backgroundColor: '#f1e05a',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>

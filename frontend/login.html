@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Hotel Income Tracker</title>
+    <link rel="stylesheet" href="style.css?v=8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #0d1117; color: #fff;
+        }
+        .login-card {
+            background: #161b22; border: 1px solid var(--border-color, #30363d); border-radius: 12px;
+            padding: 2.5rem; width: 100%; max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .login-card h2 { text-align: center; margin-bottom: 2rem; font-weight: 600; }
+        .form-group-login { margin-bottom: 1.5rem; }
+        .form-group-login label { display: block; color: var(--text-muted, #8b949e); margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .form-group-login input { 
+            width: 100%; padding: 0.8rem; background: #0d1117; box-sizing: border-box;
+            border: 1px solid var(--border-color, #30363d); border-radius: 6px; 
+            color: #fff; font-size: 1rem; transition: border-color 0.2s;
+        }
+        .form-group-login input:focus { outline: none; border-color: #58a6ff; }
+        #error-msg { background: rgba(215, 58, 73, 0.1); color: #ff7b72; padding: 0.8rem; border-radius: 6px; margin-bottom: 1.5rem; text-align: center; border: 1px solid #ff7b72; display: none; }
+        .btn-submit { 
+            width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 8px; 
+            background: #238636; color: white; border: none; cursor: pointer; font-weight: bold;
+        }
+        .btn-submit:hover { background: #2ea043; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>Panel de Administración</h2>
+        <div id="error-msg">Credenciales incorrectas</div>
+        <form id="login-form">
+            <div class="form-group-login">
+                <label>Usuario</label>
+                <input type="text" id="username" autocomplete="username" required>
+            </div>
+            <div class="form-group-login">
+                <label>Contraseña</label>
+                <input type="password" id="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn-submit" id="btn-login">Ingresar de forma segura</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-login');
+            btn.textContent = 'Autenticando...'; btn.disabled = true;
+            
+            const params = new URLSearchParams();
+            params.append('username', document.getElementById('username').value);
+            params.append('password', document.getElementById('password').value);
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('hotel_token', data.access_token);
+                    window.location.href = '/';
+                } else {
+                    document.getElementById('error-msg').style.display = 'block';
+                    btn.textContent = 'Ingresar de forma segura'; btn.disabled = false;
+                }
+            } catch(err) {
+                alert('No se pudo conectar con el servidor.');
+                btn.textContent = 'Ingresar de forma segura'; btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
