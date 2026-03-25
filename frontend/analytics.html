@@ -9,23 +9,30 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .analytics-container { padding: 2rem; max-width: 1200px; margin: auto; }
-        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
-        .chart-card { background: var(--surface); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); }
-        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+        .chart-card { background: var(--surface); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; width: 100%; }
         .chart-title { font-size: 1.2rem; font-weight: 600; color: #fff; }
-        .range-picker { padding: 0.5rem; background: var(--bg-color); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; }
+        .range-picker { padding: 0.5rem; background: var(--bg-color); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; }
         
+        .canvas-container { position: relative; height: 350px; width: 100%; flex-grow: 1; }
+
         @media (max-width: 768px) {
-            .chart-grid { grid-template-columns: 1fr; }
+            .analytics-container { padding: 1rem; }
+            .chart-grid { grid-template-columns: 1fr; gap: 1rem; }
+            .chart-header { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+            .range-picker { width: 100%; }
+            .canvas-container { height: 250px; } /* Automatically resizes smaller on mobile */
+            header h1 { font-size: 1.1rem !important; }
         }
     </style>
 </head>
 <body>
-    <header>
-        <div style="display:flex; align-items:center;">
-            <button class="btn-reset" onclick="window.location.href='/'" style="margin-right:1rem; padding: 0.5rem;">< Volver</button>
-            <h1 style="color:var(--primary); margin:0;">Inteligencia de Negocio 📊</h1>
+    <header style="display: flex; align-items: center;">
+        <div>
+            <button class="btn-reset" onclick="window.location.href='/'" style="margin: 0 1rem 0 0; padding: 0.5rem 0.8rem;">< Volver</button>
         </div>
+        <h1 style="color:var(--primary); margin:0;">Inteligencia 📊</h1>
     </header>
 
     <div class="analytics-container">
@@ -40,7 +47,9 @@
                         <option value="month">Histórico por Meses</option>
                     </select>
                 </div>
-                <canvas id="incomeChart"></canvas>
+                <div class="canvas-container">
+                    <canvas id="incomeChart"></canvas>
+                </div>
             </div>
 
             <!-- Nivel de Ocupación -->
@@ -48,16 +57,19 @@
                 <div class="chart-header">
                     <div class="chart-title">Nivel Estacional de Ocupación</div>
                 </div>
-                <!-- Occupancy relies on the same timeframe selector above implicitly -->
-                <canvas id="occupancyChart"></canvas>
+                <div class="canvas-container">
+                    <canvas id="occupancyChart"></canvas>
+                </div>
             </div>
             
-            <!-- Rendimiento por Habitación (Ranking) -->
-            <div class="chart-card" style="grid-column: 1 / -1; margin-top: 1rem;">
+            <!-- Rendimiento por Habitación -->
+            <div class="chart-card" style="grid-column: 1 / -1;">
                 <div class="chart-header">
-                    <div class="chart-title">Rendimiento Total Acumulado por Habitación</div>
+                    <div class="chart-title">Rendimiento Acumulado por Habitación</div>
                 </div>
-                <canvas id="roomsChart" style="max-height: 400px;"></canvas>
+                <div class="canvas-container">
+                    <canvas id="roomsChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -87,9 +99,10 @@
                 window.location.href = '/login.html';
                 return;
             }
-            // Adopt dark themes for legends and text globally in ChartJS
+            // Defaults para mejorar estética
             Chart.defaults.color = '#8b949e';
             Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+            Chart.defaults.maintainAspectRatio = false; // ESTO ARREGLA EL PROBLEMA MÓVIL
             
             loadTrendData();
             loadRoomsData();
@@ -120,8 +133,7 @@
                         fill: true,
                         tension: 0.3
                     }]
-                },
-                options: { responsive: true }
+                }
             });
 
             const ctxOcc = document.getElementById('occupancyChart').getContext('2d');
@@ -136,8 +148,7 @@
                         backgroundColor: '#3fb950',
                         borderRadius: 4
                     }]
-                },
-                options: { responsive: true }
+                }
             });
         }
 
@@ -146,7 +157,6 @@
             if(!res.ok) return;
             const raw = await res.json();
             
-            // Sort highest income to lowest properly
             raw.sort((a,b) => b.total_income - a.total_income);
             
             const labels = raw.map(r => `Hab. ${r.room_number}`);
@@ -164,8 +174,7 @@
                         backgroundColor: '#f1e05a',
                         borderRadius: 4
                     }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+                }
             });
         }
     </script>
